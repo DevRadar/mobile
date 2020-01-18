@@ -4,8 +4,12 @@ import { StyleSheet, Image, View, Text, TextInput, TouchableOpacity } from "reac
 import { requestPermissionsAsync, getCurrentPositionAsync } from "expo-location";
 import { MaterialIcons } from "@expo/vector-icons";
 
+import api from "../services/api";
+
 function Main({ navigation }) {
   const [currentRegion, setCurrentRegion] = useState(null);
+  const [devByTechs, setDevsByTechs] = useState([]);
+  const [techs, setTechs] = useState("");
 
   useEffect(() => {
     async function loadInitialPosition() {
@@ -30,34 +34,61 @@ function Main({ navigation }) {
     return null;
   }
 
-  return (
+  async function searchDevsByTech() {
+    console.log("Pressed!")
+    const { latitude, longitude } = currentRegion;
+    console.log(latitude);
+    console.log(longitude);
+    console.log(techs);
+    try {
+      const response = await api.get("/search", {
+        params: {
+          latitude,
+          longitude,
+          techs
+        }
+      });
+      setDevsByTechs(response.data);
+    } catch (error) {
+      console.log(error.message);
+    }
+  }
 
+  function handleRegionChange(region) {
+    setCurrentRegion(region);
+  }
+
+  return (
     <>
       <MapView
         style={styles.map}
         initialRegion={currentRegion}
+        onRegionChangeComplete={handleRegionChange}
       >
-        <Marker
-        coordinate={{
-          longitude: -43.1844011,
-          latitude: -22.91361
-          }}
-        >
-        <Image
-          source={{ uri: "https://avatars3.githubusercontent.com/u/9853010?v=4"}}
-          style={styles.avatar}
-        />
-        <Callout onPress={() => {
-          // navigate to Profile page
-          navigation.navigate("Profile", { github_username: "marcusreaiche" });
-        }}>
-          <View style={styles.callout}>
-            <Text style={styles.devName}>Marcus Reaiche</Text>
-            <Text style={styles.devBio}>Applied Mathematician - Risk Analyst - Also interested in Web and Mobile Dev, and Data Visualization</Text>
-            <Text style={styles.devTechs}>ReactJS, Node.js, Python</Text>
-          </View>
-        </Callout>
-        </Marker>
+        {devByTechs.map(dev => (
+          <Marker
+            key={String(dev._id)}
+            coordinate={{
+              longitude: dev.location.coordinates[0],
+              latitude: dev.location.coordinates[1]
+              }}
+          >
+            <Image
+              source={{ uri: dev.avatar_url }}
+              style={styles.avatar}
+            />
+            <Callout onPress={() => {
+              // navigate to Profile page
+              navigation.navigate("Profile", { github_username: dev.github_username });
+            }}>
+              <View style={styles.callout}>
+                <Text style={styles.devName}>{dev.name}</Text>
+                <Text style={styles.devBio}>{dev.bio}</Text>
+                <Text style={styles.devTechs}>{dev.techs.join(", ")}</Text>
+              </View>
+            </Callout>
+          </Marker>
+        ))}
       </MapView>
       <View style={styles.searchForm}>
         <TextInput
@@ -66,9 +97,11 @@ function Main({ navigation }) {
           placeholderTextColor="#999"
           autoCapitalize="words"
           autoCorrect={false}
+          value={techs}
+          onChangeText={text => setTechs(text)}
         />
         <TouchableOpacity
-          onPress={() => {}}
+          onPress={searchDevsByTech}
           style={styles.loadButton}
         >
           <MaterialIcons
