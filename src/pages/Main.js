@@ -5,6 +5,7 @@ import { requestPermissionsAsync, getCurrentPositionAsync } from "expo-location"
 import { MaterialIcons } from "@expo/vector-icons";
 
 import api from "../services/api";
+import { connect, disconnect, subscribeToNewDevs } from "../services/socket";
 
 function Main({ navigation }) {
   const [currentRegion, setCurrentRegion] = useState(null);
@@ -30,16 +31,24 @@ function Main({ navigation }) {
     loadInitialPosition();
   }, [])
 
+  useEffect(() => {
+    subscribeToNewDevs(dev => setDevsByTechs([...devByTechs, dev]));
+  }, [devByTechs]);
+
   if(!currentRegion) {
     return null;
   }
 
-  async function searchDevsByTech() {
-    console.log("Pressed!")
+  function setupWebsocket() {
+    disconnect();
     const { latitude, longitude } = currentRegion;
-    console.log(latitude);
-    console.log(longitude);
-    console.log(techs);
+
+    connect(latitude, longitude, techs);
+  }
+
+  async function searchDevsByTech() {
+
+    const { latitude, longitude } = currentRegion;
     try {
       const response = await api.get("/search", {
         params: {
@@ -49,6 +58,7 @@ function Main({ navigation }) {
         }
       });
       setDevsByTechs(response.data);
+      setupWebsocket();
     } catch (error) {
       console.log(error.message);
     }
